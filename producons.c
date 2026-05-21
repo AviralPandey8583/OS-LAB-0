@@ -1,64 +1,55 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include <unistd.h>
 
-#define BUFFER_SIZE 5
+#define N 5  // Number of philosophers
 
-int buffer[BUFFER_SIZE];
-int in = 0, out = 0;
-int count = 0;
+sem_t chopstick[N];   // Semaphores for chopsticks
 
-void producer() {
-    int item;
+void *philosopher(void *num) {
+    int id = *(int *)num;
 
-    for (int i = 0; i < 10; i++) {
+    while (1) {
+        printf("Philosopher %d is thinking...\n", id);
+        sleep(1);
 
-        // If buffer is full
-        if (count == BUFFER_SIZE) {
-            printf("Buffer FULL! Producer waiting...\n");
-        }
+        // Pick up chopsticks
+        sem_wait(&chopstick[id]);
+        sem_wait(&chopstick[(id + 1) % N]);
 
-        else {
-            item = rand() % 100;
+        printf("Philosopher %d is eating...\n", id);
+        sleep(2);
 
-            buffer[in] = item;
-            printf("Producer produced: %d at index %d\n", item, in);
+        // Put down chopsticks
+        sem_post(&chopstick[id]);
+        sem_post(&chopstick[(id + 1) % N]);
 
-            in = (in + 1) % BUFFER_SIZE;
-            count++;
-        }
-
+        printf("Philosopher %d finished eating and put down chopsticks.\n", id);
         sleep(1);
     }
 }
 
-void consumer() {
-    int item;
-
-    for (int i = 0; i < 10; i++) {
-
-        // If buffer is empty
-        if (count == 0) {
-            printf("Buffer EMPTY! Consumer waiting...\n");
-        }
-
-        else {
-            item = buffer[out];
-            printf("Consumer consumed: %d from index %d\n", item, out);
-
-            out = (out + 1) % BUFFER_SIZE;
-            count--;
-        }
-
-        sleep(2);
-    }
-}
-
 int main() {
-    printf("Producer Consumer Problem (Without Threads)\n\n");
+    pthread_t tid[N];
+    int phil[N];
 
-    producer();
-    consumer();
+    // Initialize semaphores
+    for (int i = 0; i < N; i++) {
+        sem_init(&chopstick[i], 0, 1);
+        phil[i] = i;
+    }
+
+    // Create philosopher threads
+    for (int i = 0; i < N; i++) {
+        pthread_create(&tid[i], NULL, philosopher, &phil[i]);
+    }
+
+    // Join threads (infinite loop, so program runs continuously)
+    for (int i = 0; i < N; i++) {
+        pthread_join(tid[i], NULL);
+    }
 
     return 0;
 }
